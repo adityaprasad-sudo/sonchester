@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sonchester</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+<style>
+  :root{
+    --c1: #EC3750; --c2: #FF8C37; --c3: #F1C40F; --c4: #33D6A6; --c5: #5BC0DE;
+    --c6: #338EDA; --c7: #A633D6; --c8: #0F0F1A; --c9: #0A0A12; --c10: #F7F5EE;
+    --s1: #F4E9D8; --s2: #2B1B3A;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh;
+    background: var(--c8);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    color: var(--c10);
+    overflow-x: hidden;
+  }
+
+  .doodle { font-family: 'Kalam', cursive; }
+
+  body {
+    background:
+      radial-gradient(circle at 8% 10%, rgba(236,55,80,0.30), transparent 40%),
+      radial-gradient(circle at 92% 15%, rgba(51,142,218,0.28), transparent 45%),
+      radial-gradient(circle at 50% 95%, rgba(166,51,214,0.28), transparent 50%),
+      var(--c8);
+    background-attachment: fixed;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 26px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 26px);
+    pointer-events: none; z-index: 0;
+  }
+
+  .f_p { position: fixed; font-size: 2.4rem; opacity: 0.14; z-index: 0; animation: drf 14s ease-in-out infinite; user-select: none; pointer-events: none; }
+  @keyframes drf { 0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-40px) rotate(18deg);} }
+
+  /* ============ hand-drawn "rough" edge filter ============ */
+  /* applied to boxes so straight CSS rectangles get a wobbly, sketched-marker outline instead of looking machine-perfect */
+
+  .rough { filter: url(#roughen); }
+
+  /* little scribble/arrow doodles scattered around for that "someone drew on the whiteboard" energy */
+  .scribble { position: absolute; opacity: 0.85; pointer-events: none; z-index: 4; }
+
+  /* sticky-tape corner accents */
+  .tape {
+    position: absolute; width: 62px; height: 20px;
+    background: rgba(241,196,15,0.85);
+    box-shadow: 1px 2px 4px rgba(0,0,0,0.35);
+    z-index: 3;
+  }
+
+  /* =====================================================
+     MENU VIEW
+  ===================================================== */
+  #m_view { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; padding: 40px 20px 60px; }
+
+  .h_t { text-align: center; margin: 0 0 4px 0; font-size: clamp(2.2rem, 6vw, 4.2rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--c10); text-shadow: 4px 4px 0 var(--c1); display:flex; align-items:center; justify-content:center; gap:14px; }
+  .h_t .wgl { display: inline-block; animation: wgl 2.4s ease-in-out infinite; }
+  @keyframes wgl { 0%,100%{transform:rotate(-8deg);} 50%{transform:rotate(8deg);} }
+  .a_img { display: inline-block; width: 58px; height: 58px; background-image: url('./image/WhatsApp Image 2026-07-31 at 17.48.09 (1).png'); background-size: cover; background-position:center; border-radius: 50%; border: 3px solid var(--c10); }
+
+  .h_s { text-align: center; color: var(--c3); font-weight: 700; font-size: clamp(0.95rem, 2vw, 1.15rem); margin: 10px 0 10px; background: rgba(0,0,0,0.35); padding: 8px 18px; border-radius: 999px; border: 3px dashed rgba(241,196,15,0.6); transform: rotate(-1deg); }
+
+  .underline-svg { display:block; margin: 0 auto 40px; opacity: 0.9; }
+
+  .m_s { display: flex; gap: 46px; flex-wrap: wrap; justify-content: center; align-items: flex-start; padding: 10px 20px 0; position: relative; }
+
+  .m_b {
+    position: relative; width: 300px; height: 400px; border-radius: 26px;
+    border: 6px solid var(--c10); cursor: pointer; overflow: hidden;
+    background-size: cover; background-position: center;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease;
+    box-shadow: 9px 9px 0 rgba(0,0,0,0.55); font-family: inherit; padding: 0;
+  }
+  .m_b:nth-child(1) { transform: rotate(-2deg); }
+  .m_b:nth-child(2) { transform: rotate(2deg); }
+  .m_b:focus-visible { outline: 4px solid var(--c5); outline-offset: 4px; }
+
+  .m_b .ovr { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,10,18,0.1) 0%, rgba(10,10,18,0.55) 55%, rgba(10,10,18,0.94) 100%); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 24px 18px; text-align: center; }
+  .m_b .tg { position: absolute; top: 16px; left: 16px; background: var(--c8); color: white; font-size: 0.72rem; letter-spacing: 0.03em; padding: 6px 10px; border-radius: 6px; border: 2px solid var(--c10); transform: rotate(-4deg); font-family:'Kalam',cursive; font-weight:700; max-width: 200px; }
+  .m_b h2 { margin: 0 0 6px 0; font-size: 2.1rem; font-weight: 800; color: white; text-shadow: 0 3px 0 rgba(0,0,0,0.9), 0 0 24px rgba(0,0,0,0.6); font-family:'Kalam',cursive; }
+  .m_b .vs-line { font-size: 0.82rem; font-weight: 700; color: var(--c3); background: rgba(0,0,0,0.5); padding: 4px 10px; border-radius: 999px; border: 1.5px dashed rgba(241,196,15,0.7); }
+
+  #btn1:hover { transform: rotate(-2deg) scale(1.07) translateY(-6px); box-shadow: 13px 15px 0 rgba(0,0,0,0.6); }
+  #btn1:active { transform: rotate(-2deg) scale(0.97); }
+  #btn2:hover { transform: rotate(2deg) scale(1.07) translateY(-6px); box-shadow: 13px 15px 0 rgba(0,0,0,0.6); }
+  #btn2:active { transform: rotate(2deg) scale(0.97); }
+
+  #btn1 { background-image: url('./image/son.png'); background-color: var(--c1); background-size: 100%; background-repeat: no-repeat; background-position: center 30%; border-color: var(--c3); }
+  #btn2 { background-image: url('./image/chili-pepper-spice_24877-84055.png'); background-color: var(--c2); background-size: 70%; background-repeat: no-repeat; background-position: center 30%; border-color: var(--c4); }
+
+  .anson-warning {
+    position: absolute; bottom: calc(100% + 12px); left: 50%;
+    transform: translateX(-50%) translateY(8px) scale(0.9);
+    background: var(--c3); color: var(--c8); font-weight: 700; font-size: 0.8rem;
+    padding: 9px 13px; border-radius: 10px; border: 3px solid var(--c8);
+    white-space: nowrap; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.4); z-index: 10; font-family:'Kalam',cursive;
+  }
+  .anson-warning::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:8px solid transparent; border-top-color:var(--c3); }
+  #btn1:hover .anson-warning, #btn1:focus-visible .anson-warning { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+
+  /* =====================================================
+     BOARD VIEW
+  ===================================================== */
+  #b_view { display: none; }
+
+  .t_b { position: relative; z-index: 3; display: flex; align-items: center; justify-content: space-between; padding: 16px 26px; border-bottom: 4px solid var(--c3); background: rgba(10,10,18,0.55); backdrop-filter: blur(6px); flex-wrap: wrap; gap: 12px; }
+  .versus-strip { display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.05rem; font-family:'Kalam',cursive; }
+  .versus-strip .vs-pill { background: var(--c7); padding: 4px 12px; border-radius: 999px; font-size:0.8rem; transform: rotate(-2deg); border: 2px solid var(--c8); }
+  .b_l { color: var(--c8); background: var(--c3); font-weight: 800; text-decoration: none; padding: 9px 16px; border-radius: 999px; border: 3px solid var(--c8); box-shadow: 3px 3px 0 rgba(0,0,0,0.4); cursor: pointer; font-family:'Kalam',cursive; transition: transform 0.2s cubic-bezier(.34,1.56,.64,1); }
+  .b_l:hover { transform: scale(1.08) rotate(-3deg); }
+
+  .w_p { position: relative; z-index: 2; display: flex; gap: 34px; justify-content: center; align-items: flex-start; flex-wrap: wrap; padding: 34px 20px 60px; }
+
+  .b_s { position: relative; padding: 14px; background: var(--c9); border-radius: 24px; border: 6px solid var(--c10); box-shadow: 10px 10px 0 rgba(0,0,0,0.55); animation: shelf-breathe 6s ease-in-out infinite; }
+  @keyframes shelf-breathe { 0%,100%{ transform: rotate(-0.3deg);} 50%{ transform: rotate(0.3deg);} }
+
+  .b_s.locked::after { content:""; position:absolute; inset:0; background: rgba(10,10,18,0.15); cursor: wait; border-radius:24px; z-index:5; }
+
+  .brd { display: grid; grid-template-columns: repeat(8, min(9.2vw, 70px)); grid-template-rows: repeat(8, min(9.2vw, 70px)); border-radius: 10px; overflow: hidden; border: 3px solid var(--c8); position: relative; }
+
+  .sq { position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; }
+  .sq.lgt { background: var(--s1); background-image: repeating-linear-gradient(135deg, rgba(43,27,58,0.035) 0 2px, transparent 2px 10px); }
+  .sq.drk { background: var(--s2); background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 10px); }
+
+  .crd { position: absolute; font-size: 0.55rem; font-weight: 700; opacity: 0.55; pointer-events: none; }
+  .sq.lgt .crd { color: var(--s2); } .sq.drk .crd { color: var(--s1); }
+  .crd.f { bottom: 2px; right: 4px; } .crd.r { top: 2px; left: 3px; }
+
+  .sq.sel::after { content:""; position:absolute; inset:4px; border:3px dashed var(--c3); border-radius:8px; box-shadow:0 0 14px rgba(241,196,15,0.75); pointer-events:none; z-index:0; animation: sel-spin 3s linear infinite; }
+  @keyframes sel-spin { to { outline-offset: 2px; } }
+  .sq.lmv { box-shadow: inset 0 0 0 999px rgba(91,192,222,0.30); }
+  .sq.lgmv::before { content:""; position:absolute; width:26%; height:26%; border-radius:50%; background: rgba(51,214,166,0.8); pointer-events:none; animation: pop-dot 0.25s ease; }
+  .sq.lgcp::before { content:""; position:absolute; inset:6%; border-radius:50%; background:transparent; border:5px solid rgba(236,55,80,0.8); pointer-events:none; animation: pop-dot 0.25s ease; }
+  @keyframes pop-dot { from { transform: scale(0); } to { transform: scale(1); } }
+  .sq.chk { animation: cp 0.7s ease-in-out infinite; }
+  @keyframes cp { 0%,100%{ box-shadow: inset 0 0 0 999px rgba(236,55,80,0.15);} 50%{ box-shadow: inset 0 0 0 999px rgba(236,55,80,0.5);} }
+  .sq.chk .pz-bob { animation: king-shake 0.4s ease-in-out infinite, bob 3s ease-in-out infinite; }
+  @keyframes king-shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-2px);} 75%{transform:translateX(2px);} }
+
+  .pz-bob { width: 82%; height: 82%; animation: bob 3.2s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-3px);} }
+  .pz-img { width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; filter: drop-shadow(2px 3px 0 rgba(0,0,0,0.35)); transition: transform 0.15s ease; }
+  .sq:hover .pz-img { transform: scale(1.12) rotate(-3deg); }
+  .pz-bob.grabbed { filter: drop-shadow(0 10px 6px rgba(0,0,0,0.5)); }
+  .pz-bob.grabbed .pz-img { transform: scale(1.18) translateY(-6px) rotate(3deg); }
+  .pz-bob.poof { animation: poof 0.3s ease forwards !important; }
+  @keyframes poof { to { transform: scale(0) rotate(50deg); opacity: 0; } }
+
+  /* ---------- thinking bubble ---------- */
+  .thinking-bubble {
+    position: absolute; top: -18px; right: -14px;
+    background: var(--c10); color: var(--c8); font-family:'Kalam',cursive; font-weight:700;
+    padding: 10px 16px; border-radius: 16px; border: 3px solid var(--c8);
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.4); transform: rotate(4deg);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 10; font-size: 0.85rem; white-space: nowrap;
+  }
+  .thinking-bubble.show { opacity: 1; transform: rotate(4deg) translateY(-6px); }
+  .thinking-bubble .dots span { animation: dot-bounce 1s infinite; opacity: 0.3; }
+  .thinking-bubble .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .thinking-bubble .dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dot-bounce { 0%,100%{ opacity:0.3; transform: translateY(0);} 50%{ opacity:1; transform: translateY(-3px);} }
+
+  /* ---------- sidebar ---------- */
+  .s_b { width: 320px; max-width: 92vw; display: flex; flex-direction: column; gap: 18px; }
+  .pnl { position: relative; background: rgba(15,15,26,0.65); border: 3px solid var(--c10); border-radius: 16px; padding: 16px 18px; box-shadow: 6px 6px 0 rgba(0,0,0,0.45); }
+  .pnl:nth-child(odd) { transform: rotate(-0.6deg); }
+  .pnl:nth-child(even) { transform: rotate(0.6deg); }
+  .pnl h3 { margin: 0 0 8px 0; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c5); font-family:'Kalam',cursive; }
+
+  .t_bg { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; font-family:'Kalam',cursive; }
+  .t_dt { width: 16px; height: 16px; border-radius: 50%; background: var(--c10); border: 2px solid var(--c8); transition: background 0.2s ease; }
+  .t_dt.blk { background: var(--c7); }
+  .s_ln { margin-top: 6px; font-size: 0.88rem; color: var(--c3); font-weight: 700; min-height: 1.2em; font-family:'Kalam',cursive; }
+
+  .c_rw { display: flex; flex-wrap: wrap; gap: 4px; min-height: 30px; }
+  .c_rw .pz-img { width: 24px; height: 24px; opacity: 0.9; }
+
+  .m_pn { max-height: 220px; overflow-y: auto; }
+  .m_ls { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px 10px; font-size: 0.85rem; font-family: monospace; }
+  .m_ls .mn { color: rgba(247,245,238,0.5); }
+  .m_ls .mw, .m_ls .mb { font-weight: 700; }
+
+  .ctrl { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btx { flex: 1; min-width: 90px; padding: 13px 10px; border-radius: 14px; border: 3px solid var(--c8); font-weight: 800; font-size: 0.9rem; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,0.4); color: var(--c8); font-family:'Kalam',cursive; transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease; }
+  .btx:hover { transform: translateY(-3px) rotate(-2deg) scale(1.05); box-shadow: 6px 8px 0 rgba(0,0,0,0.4); }
+  .btx:active { transform: translateY(0) rotate(0) scale(0.95); }
+  .btx.nw { background: var(--c4); }
+  .btx.un { background: var(--c2); }
+  .btx.fl { background: var(--c5); }
+
+  .b_ov { position: fixed; inset: 0; background: rgba(10,10,18,0.75); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .b_ov.sh { display: flex; }
+  .b_cd { background: var(--c1); border: 6px solid var(--c10); border-radius: 22px; padding: 34px 40px; text-align: center; transform: rotate(-2deg); box-shadow: 12px 12px 0 rgba(0,0,0,0.6); animation: pop-in 0.35s cubic-bezier(.34,1.56,.64,1); font-family:'Kalam',cursive; }
+  @keyframes pop-in { from { transform: rotate(-2deg) scale(0.6); opacity:0;} to { transform: rotate(-2deg) scale(1); opacity:1;} }
+  .b_cd h2 { font-size: 2.1rem; margin: 0 0 8px; }
+  .b_cd button { background: var(--c3); color: var(--c8); border: 3px solid var(--c8); border-radius: 999px; padding: 10px 22px; font-weight: 800; cursor: pointer; box-shadow: 4px 4px 0 rgba(0,0,0,0.4); font-family:'Kalam',cursive; }
+  .b_cd button:hover { transform: scale(1.06) rotate(-2deg); }
+
+  .p_ov { position: fixed; inset: 0; background: rgba(10,10,18,0.75); display: none; align-items: center; justify-content: center; z-index: 60; }
+  .p_ov.sh { display: flex; }
+  .p_cd { background: var(--c9); border: 4px solid var(--c3); border-radius: 18px; padding: 22px; text-align: center; font-family:'Kalam',cursive; }
+  .p_op { display: flex; gap: 12px; }
+  .p_op button { width: 60px; height: 60px; border-radius: 12px; border: 3px solid var(--c10); background: var(--c7); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .p_op button:hover { transform: scale(1.1) rotate(-6deg); }
+  .p_op .pz-img { width: 70%; height: 70%; }
+
+  @media (max-width: 760px) {
+    .brd { grid-template-columns: repeat(8, min(10.5vw, 44px)); grid-template-rows: repeat(8, min(10.5vw, 44px)); }
+    .s_b { width: 100%; }
+    .m_s { gap: 28px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- hand-drawn wobble filter used by .rough elements -->
+  <svg width="0" height="0" style="position:absolute">
+    <filter id="roughen">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="2" seed="4" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="7"/>
+    </filter>
+  </svg>
+
+  <div class="f_p" style="top:22%; left:6%; animation-delay:0s;">♞</div>
+  <div class="f_p" style="top:60%; left:12%; animation-delay:2s;">♟</div>
+  <div class="f_p" style="top:35%; right:8%; animation-delay:1s;">♛</div>
+  <div class="f_p" style="top:75%; right:14%; animation-delay:3s;">♜</div>
+  <div class="f_p" style="top:50%; left:50%; animation-delay:4s;">♝</div>
+
+  <main id="m_view">
+    <h1 class="h_t"><span class="wgl"><span class="a_img"></span></span>SONchester</h1>
+    <p class="h_s doodle">Choose your player below LAH!!!</p>
+
+    <svg class="underline-svg" width="220" height="20" viewBox="0 0 220 20">
+      <path d="M4 14 Q40 2 80 12 T160 8 T216 14" stroke="var(--c1)" stroke-width="4" fill="none" stroke-linecap="round"/>
+    </svg>
+
+    <div class="m_s">
+      <button id="btn1" class="m_b rough" type="button">
+        <span class="tg doodle">Anson — clearly hangry about something</span>
+        <div class="ovr">
+          <div class="anson-warning">⚠️ Warning: Anson does not like Indian food.</div>
+          <h2>Play as Anson</h2>
+          <span class="vs-line doodle">you'll face Chilli AI</span>
+        </div>
+      </button>
+
+      <button id="btn2" class="m_b rough" type="button">
+        <span class="tg doodle">Someone dont like me 🥹😭</span>
+        <div class="ovr">
+          <h2>Play as Chilli</h2>
+          <span class="vs-line doodle">you'll face Anson AI</span>
+        </div>
+      </button>
+    </div>
+  </main>
+
+  <div id="b_view">
+    <div class="t_b">
+      <div class="versus-strip">
+        <span class="wgl">♟️</span>Sonchester
+        <span class="vs-pill" id="matchupPill">You vs Chilli AI</span>
+      </div>
+      <button class="b_l" id="bck_btn">← back to menu</button>
+    </div>
+
+    <div class="w_p">
+      <div class="b_s" id="boardShell">
+        <div class="brd" id="bbx"></div>
+        <div class="thinking-bubble" id="thinkBubble">
+          <span id="thinkLabel">Chilli AI</span> is scheming<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+      </div>
+
+      <div class="s_b">
+        <div class="pnl">
+          <div class="t_bg">
+            <span class="t_dt" id="tdx"></span>
+            <span id="tlx">White to move</span>
+          </div>
+          <div class="s_ln" id="slx">let's gooo ♟️</div>
+        </div>
+
+        <div class="pnl">
+          <h3>Captured — by white</h3>
+          <div class="c_rw" id="cwx"></div>
+          <h3 style="margin-top:14px;">Captured — by black</h3>
+          <div class="c_rw" id="cbx"></div>
+        </div>
+
+        <div class="pnl m_pn">
+          <h3>Move log</h3>
+          <div class="m_ls" id="mlx"></div>
+        </div>
+
+        <div class="ctrl">
+          <button class="btx nw" id="nwx">New game</button>
+          <button class="btx un" id="unx">Undo</button>
+          <button class="btx fl" id="flx">Flip board</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="b_ov" id="bovx">
+      <div class="b_cd">
+        <h2 id="btx1">Checkmate!</h2>
+        <p id="btx2">gg, run it back?</p>
+        <button id="btx3">New game</button>
+      </div>
+    </div>
+
+    <div class="p_ov" id="povx">
+      <div class="p_cd">
+        <h3>Promote to:</h3>
+        <div class="p_op" id="popx"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const menuView = document.getElementById('m_view');
+  const boardView = document.getElementById('b_view');
+  const matchupPill = document.getElementById('matchupPill');
+  const thinkLabel = document.getElementById('thinkLabel');
+
+  const AI_PROFILES = {
+    chilli: { label: 'Chilli AI', depth: 2, randomness: 0.16, useTables: false },
+    anson:  { label: 'Anson AI',  depth: 3, randomness: 0.04, useTables: true  }
+  };
+
+  let humanColor = 'w';
+  let currentAi = AI_PROFILES.chilli;
+
+  document.getElementById('btn1').addEventListener('click', () => startMatch('anson'));
+  document.getElementById('btn2').addEventListener('click', () => startMatch('chilli'));
+  document.getElementById('bck_btn').addEventListener('click', () => {
+    boardView.style.display = 'none';
+    menuView.style.display = 'flex';
+  });
+
+  function startMatch(persona) {
+    currentAi = persona === 'anson' ? AI_PROFILES.chilli : AI_PROFILES.anson;
+    matchupPill.textContent = 'You vs ' + currentAi.label;
+    thinkLabel.textContent = currentAi.label;
+    menuView.style.display = 'none';
+    boardView.style.display = 'block';
+    resetGame();
+  }
+
+  const pieceRenderers = {
+    p: (c) => `<img src="./image/${c}_p.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 1 : 2});">`,
+    r: (c) => `<img src="./image/${c}_r.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 1.5 : 4.7});">`,
+    n: (c) => `<img src="./image/${c}_n.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 2 : 2.4});">`,
+    b: (c) => `<img src="./image/${c}_b.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 1.5 : 3});">`,
+    q: (c) => `<img src="./image/${c}_q.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 2 : 3.5});">`,
+    k: (c) => `<img src="./image/${c}_k.png" style="width:100%;height:100%;object-fit:contain;pointer-events:none;transform:scale(${c === 'b' ? 2 : 3.5});">`,
+  };
+
+  const chess = new Chess();
+  const boardEl = document.getElementById('bbx');
+  const boardShell = document.getElementById('boardShell');
+  const thinkBubble = document.getElementById('thinkBubble');
+  const turnDot = document.getElementById('tdx');
+  const turnLabel = document.getElementById('tlx');
+  const statusLine = document.getElementById('slx');
+  const capturedByWhiteEl = document.getElementById('cwx');
+  const capturedByBlackEl = document.getElementById('cbx');
+  const movesListEl = document.getElementById('mlx');
+  const bannerOverlay = document.getElementById('bovx');
+  const bannerTitle = document.getElementById('btx1');
+  const bannerSub = document.getElementById('btx2');
+  const promoOverlay = document.getElementById('povx');
+  const promoOptions = document.getElementById('popx');
+
+  let orientation = 'w';
+  let selectedSquare = null;
+  let legalTargets = [];
+  let lastMove = null;
+  let pendingPromotion = null;
+  let boardLocked = false;
+  const FILES = ['a','b','c','d','e','f','g','h'];
+
+  function squareId(fileIdx, rankIdx) { return FILES[fileIdx] + (8 - rankIdx); }
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const dc = orientation === 'w' ? col : 7 - col;
+        const dr = orientation === 'w' ? row : 7 - row;
+        const sq = squareId(dc, dr);
+        const div = document.createElement('div');
+        div.className = 'sq ' + ((dr + dc) % 2 === 0 ? 'lgt' : 'drk');
+        div.dataset.s = sq;
+        div.addEventListener('click', () => onSquareClick(sq));
+        div.addEventListener('dragover', (e) => e.preventDefault());
+        div.addEventListener('drop', (e) => { e.preventDefault(); onDrop(sq); });
+        if (dc === 0) { const r = document.createElement('span'); r.className = 'crd r'; r.textContent = sq[1]; div.appendChild(r); }
+        if (dr === 7) { const f = document.createElement('span'); f.className = 'crd f'; f.textContent = sq[0]; div.appendChild(f); }
+        boardEl.appendChild(div);
+      }
+    }
+  }
+
+  function render() {
+    document.querySelectorAll('.sq').forEach(el => {
+      el.classList.remove('sel', 'lgmv', 'lgcp', 'lmv', 'chk');
+      const p = el.querySelector('.pz-bob');
+      if (p) p.remove();
+    });
+
+    const boardState = chess.board();
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const cell = boardState[r][c];
+        if (!cell) continue;
+        const sq = squareId(c, r);
+        const el = boardEl.querySelector(`[data-s="${sq}"]`);
+        if (!el) continue;
+        const bob = document.createElement('div');
+        bob.className = 'pz-bob';
+        bob.style.animationDelay = (((r + c) % 5) * 0.25) + 's';
+        bob.draggable = true;
+        const img = document.createElement('div');
+        img.className = 'pz-img';
+        img.innerHTML = pieceRenderers[cell.type](cell.color);
+        bob.appendChild(img);
+        bob.addEventListener('dragstart', (e) => {
+          if (boardLocked || cell.color !== chess.turn()) { e.preventDefault(); return; }
+          selectSquare(sq); bob.classList.add('grabbed');
+        });
+        bob.addEventListener('dragend', () => bob.classList.remove('grabbed'));
+        el.appendChild(bob);
+      }
+    }
+
+    if (lastMove) {
+      const f = boardEl.querySelector(`[data-s="${lastMove.from}"]`);
+      const t = boardEl.querySelector(`[data-s="${lastMove.to}"]`);
+      if (f) f.classList.add('lmv'); if (t) t.classList.add('lmv');
+    }
+    if (selectedSquare) {
+      const s = boardEl.querySelector(`[data-s="${selectedSquare}"]`);
+      if (s) s.classList.add('sel');
+      legalTargets.forEach(m => {
+        const t = boardEl.querySelector(`[data-s="${m.to}"]`);
+        if (!t) return;
+        t.classList.add(m.flags.includes('c') || m.flags.includes('e') ? 'lgcp' : 'lgmv');
+      });
+    }
+    if (chess.in_check()) {
+      const ks = findKingSquare(chess.turn());
+      if (ks) { const k = boardEl.querySelector(`[data-s="${ks}"]`); if (k) k.classList.add('chk'); }
+    }
+    updateSidebar();
+  }
+
+  function findKingSquare(color) {
+    const b = chess.board();
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const cell = b[r][c];
+      if (cell && cell.type === 'k' && cell.color === color) return squareId(c, r);
+    }
+    return null;
+  }
+
+  function updateSidebar() {
+    const turn = chess.turn();
+    turnDot.classList.toggle('blk', turn === 'b');
+    turnLabel.textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+
+    let status = "let's gooo ♟️";
+    if (chess.in_checkmate()) status = 'Checkmate!';
+    else if (chess.in_stalemate()) status = 'Stalemate — nobody wins, nobody loses.';
+    else if (chess.in_draw()) status = 'Draw.';
+    else if (chess.in_check()) status = 'Check! watch that king.';
+    else if (boardLocked) status = currentAi.label + ' is thinking...';
+    statusLine.textContent = status;
+
+    const history = chess.history({ verbose: true });
+    const capturedByWhite = [], capturedByBlack = [];
+    history.forEach(m => {
+      if (m.captured) {
+        const capturedColor = m.color === 'w' ? 'b' : 'w';
+        const entry = { type: m.captured, color: capturedColor };
+        if (m.color === 'w') capturedByWhite.push(entry); else capturedByBlack.push(entry);
+      }
+    });
+    capturedByWhiteEl.innerHTML = capturedByWhite.map(p => `<div class="pz-img">${pieceRenderers[p.type](p.color)}</div>`).join('');
+    capturedByBlackEl.innerHTML = capturedByBlack.map(p => `<div class="pz-img">${pieceRenderers[p.type](p.color)}</div>`).join('');
+
+    movesListEl.innerHTML = '';
+    for (let i = 0; i < history.length; i += 2) {
+      const n = document.createElement('span'); n.className = 'mn'; n.textContent = (i / 2 + 1) + '.';
+      const w = document.createElement('span'); w.className = 'mw'; w.textContent = history[i] ? history[i].san : '';
+      const b = document.createElement('span'); b.className = 'mb'; b.textContent = history[i + 1] ? history[i + 1].san : '';
+      movesListEl.appendChild(n); movesListEl.appendChild(w); movesListEl.appendChild(b);
+    }
+    document.querySelector('.m_pn').scrollTop = document.querySelector('.m_pn').scrollHeight;
+  }
+
+  function showBanner() {
+    if (chess.in_checkmate()) {
+      const winnerIsHuman = (chess.turn() !== humanColor);
+      bannerTitle.textContent = 'Checkmate!';
+      bannerSub.textContent = winnerIsHuman ? 'You win! not bad tbh 👀' : currentAi.label + ' wins. gg, run it back?';
+    } else if (chess.in_stalemate()) {
+      bannerTitle.textContent = 'Stalemate!'; bannerSub.textContent = "no legal moves left — it's a draw.";
+    } else {
+      bannerTitle.textContent = 'Draw!'; bannerSub.textContent = "nobody's winning this one.";
+    }
+    bannerOverlay.classList.add('sh');
+  }
+
+  function selectSquare(sq) {
+    if (boardLocked) return;
+    const piece = chess.get(sq);
+    if (!piece || piece.color !== chess.turn()) return;
+    selectedSquare = sq; legalTargets = chess.moves({ square: sq, verbose: true }); render();
+  }
+  function clearSelection() { selectedSquare = null; legalTargets = []; render(); }
+
+  function animateSlide(from, to, onDone) {
+    const fromEl = boardEl.querySelector(`[data-s="${from}"] .pz-bob`);
+    const toEl = boardEl.querySelector(`[data-s="${to}"]`);
+    const capturedEl = toEl ? toEl.querySelector('.pz-bob') : null;
+    if (!fromEl || !toEl) { onDone(); return; }
+
+    if (capturedEl) { capturedEl.style.animation = 'none'; capturedEl.classList.add('poof'); }
+
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect = toEl.getBoundingClientRect();
+    const dx = toRect.left - fromRect.left;
+    const dy = toRect.top - fromRect.top;
+
+    fromEl.style.animation = 'none';
+    fromEl.style.zIndex = 20;
+    fromEl.style.position = 'relative';
+    fromEl.style.transition = 'transform 0.22s cubic-bezier(.34,1.56,.64,1)';
+    fromEl.getBoundingClientRect();
+    fromEl.style.transform = `translate(${dx}px, ${dy}px) scale(1.12) rotate(4deg)`;
+
+    setTimeout(onDone, 210);
+  }
+
+  function attemptMove(from, to) {
+    if (boardLocked) return;
+    const piece = chess.get(from);
+    const isPromotion = piece && piece.type === 'p' && (to[1] === '8' || to[1] === '1');
+    if (isPromotion) { pendingPromotion = { from, to }; openPromotionPicker(piece.color); return; }
+
+    animateSlide(from, to, () => {
+      const move = chess.move({ from, to });
+      if (move) lastMove = move;
+      selectedSquare = null; legalTargets = [];
+      render();
+      if (move) afterMoveMade();
+    });
+  }
+
+  function afterMoveMade() {
+    if (chess.game_over()) { showBanner(); return; }
+    if (chess.turn() !== humanColor) triggerAiTurn();
+  }
+
+  function openPromotionPicker(color) {
+    promoOptions.innerHTML = '';
+    ['q', 'r', 'b', 'n'].forEach(type => {
+      const btn = document.createElement('button');
+      btn.innerHTML = `<div class="pz-img">${pieceRenderers[type](color)}</div>`;
+      btn.addEventListener('click', () => {
+        const move = chess.move({ from: pendingPromotion.from, to: pendingPromotion.to, promotion: type });
+        if (move) lastMove = move;
+        pendingPromotion = null; promoOverlay.classList.remove('sh');
+        selectedSquare = null; legalTargets = []; render();
+        if (move) afterMoveMade();
+      });
+      promoOptions.appendChild(btn);
+    });
+    promoOverlay.classList.add('sh');
+  }
+
+  function onSquareClick(sq) {
+    if (chess.game_over() || boardLocked) return;
+    if (selectedSquare) {
+      if (legalTargets.some(m => m.to === sq)) { attemptMove(selectedSquare, sq); return; }
+      const piece = chess.get(sq);
+      if (piece && piece.color === chess.turn()) selectSquare(sq); else clearSelection();
+      return;
+    }
+    selectSquare(sq);
+  }
+
+  function onDrop(sq) {
+    if (!selectedSquare || chess.game_over() || boardLocked) return;
+    if (legalTargets.some(m => m.to === sq)) attemptMove(selectedSquare, sq); else clearSelection();
+  }
+
+
+  const PIECE_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+  const PAWN_TABLE = [
+    0,0,0,0,0,0,0,0, 5,10,10,-20,-20,10,10,5, 5,-5,-10,0,0,-10,-5,5,
+    0,0,0,20,20,0,0,0, 5,5,10,25,25,10,5,5, 10,10,20,30,30,20,10,10,
+    50,50,50,50,50,50,50,50, 0,0,0,0,0,0,0,0
+  ];
+  const KNIGHT_TABLE = [
+    -50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,5,5,0,-20,-40, -30,5,10,15,15,10,5,-30,
+    -30,0,15,20,20,15,0,-30, -30,5,15,20,20,15,5,-30, -30,0,10,15,15,10,0,-30,
+    -40,-20,0,0,0,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50
+  ];
+
+  function orderedMoves(game) {
+    return game.moves({ verbose: true }).sort((a, b) => (b.flags.includes('c') ? 1 : 0) - (a.flags.includes('c') ? 1 : 0));
+  }
+
+  function evaluateBoard(game, useTables) {
+    const board = game.board();
+    let score = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const cell = board[r][c];
+        if (!cell) continue;
+        let val = PIECE_VALUES[cell.type];
+        if (useTables && (cell.type === 'p' || cell.type === 'n')) {
+          const wpRow = cell.color === 'w' ? (7 - r) : r;
+          const idx = wpRow * 8 + c;
+          val += (cell.type === 'p' ? PAWN_TABLE[idx] : KNIGHT_TABLE[idx]) * 0.4;
+        }
+        score += cell.color === 'w' ? val : -val;
+      }
+    }
+    return score;
+  }
+
+  function minimax(game, depth, alpha, beta, maximizing, useTables) {
+    if (depth === 0 || game.game_over()) return evaluateBoard(game, useTables);
+    const moves = orderedMoves(game);
+    if (maximizing) {
+      let best = -Infinity;
+      for (const m of moves) {
+        game.move(m);
+        best = Math.max(best, minimax(game, depth - 1, alpha, beta, false, useTables));
+        game.undo();
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const m of moves) {
+        game.move(m);
+        best = Math.min(best, minimax(game, depth - 1, alpha, beta, true, useTables));
+        game.undo();
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  }
+
+  function chooseAiMove(game, profile) {
+    const moves = orderedMoves(game);
+    if (!moves.length) return null;
+    if (Math.random() < profile.randomness) return moves[Math.floor(Math.random() * moves.length)];
+
+    const maximizing = game.turn() === 'w';
+    let bestMove = moves[0];
+    let bestScore = maximizing ? -Infinity : Infinity;
+    for (const m of moves) {
+      game.move(m);
+      const score = minimax(game, profile.depth - 1, -Infinity, Infinity, !maximizing, profile.useTables);
+      game.undo();
+      if (maximizing ? score > bestScore : score < bestScore) { bestScore = score; bestMove = m; }
+    }
+    return bestMove;
+  }
+
+  function triggerAiTurn() {
+    boardLocked = true;
+    boardShell.classList.add('locked');
+    thinkBubble.classList.add('show');
+    updateSidebar();
+    setTimeout(() => {
+      const move = chooseAiMove(chess, currentAi);
+      if (!move) { boardLocked = false; boardShell.classList.remove('locked'); thinkBubble.classList.remove('show'); return; }
+      animateSlide(move.from, move.to, () => {
+        const played = chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+        if (played) lastMove = played;
+        boardLocked = false;
+        boardShell.classList.remove('locked');
+        thinkBubble.classList.remove('show');
+        render();
+        if (chess.game_over()) showBanner();
+      });
+    }, 500 + Math.random() * 500);
+  }
+
+  document.getElementById('nwx').addEventListener('click', resetGame);
+  document.getElementById('btx3').addEventListener('click', resetGame);
+  document.getElementById('unx').addEventListener('click', () => {
+    if (boardLocked) return;
+    chess.undo();
+    if (chess.turn() !== humanColor && !chess.game_over()) chess.undo(); // undo AI reply too so it's the human's turn again
+    lastMove = null; clearSelection();
+  });
+  document.getElementById('flx').addEventListener('click', () => { orientation = orientation === 'w' ? 'b' : 'w'; buildBoard(); render(); });
+
+  function resetGame() {
+    chess.reset();
+    selectedSquare = null; legalTargets = []; lastMove = null; boardLocked = false;
+    boardShell.classList.remove('locked'); thinkBubble.classList.remove('show');
+    bannerOverlay.classList.remove('sh');
+    buildBoard();
+    render();
+  }
+
+  buildBoard();
+  render();
+</script>
+</body>
+</html>
